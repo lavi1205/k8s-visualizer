@@ -1,4 +1,3 @@
-# collector.py
 from .client import KubernetesClient
 
 class ResourceCollector:
@@ -54,26 +53,52 @@ class ResourceCollector:
         pods = []
         secrets = []
         for ns in self.namespaces:
-            # Fetch deployments (skip for database namespaces)
-            if ns not in self.DATABASE_NAMESPACES:
-                deployments.extend(self.client.list_deployments(ns))
-            
-            # Fetch statefulsets (prioritize for database namespaces)
-            statefulsets.extend(self.client.list_statefulsets(ns))
-            
-            # Fetch services
-            services.extend(self.client.list_services(ns))
-            
-            # Fetch PVCs
-            pvcs.extend(self.client.list_pvcs(ns))
-            
-            # Fetch ingresses
-            ingresses.extend(self.client.list_ingresses(ns))
-            
-            # Fetch pods with status
-            pods.extend(self.client.list_pods(ns))
-            secrets.extend(self.client.list_secrets(ns))
-        return deployments, statefulsets, services, pvcs, ingresses, pods
+            try:
+                # Fetch deployments (skip for database namespaces)
+                if ns not in self.DATABASE_NAMESPACES:
+                    try:
+                        deployments.extend(self.client.list_deployments(ns))
+                    except Exception as e:
+                        print(f"Error fetching deployments in namespace {ns}: {str(e)}")
+                
+                # Fetch statefulsets (prioritize for database namespaces)
+                try:
+                    statefulsets.extend(self.client.list_statefulsets(ns))
+                except Exception as e:
+                    print(f"Error fetching statefulsets in namespace {ns}: {str(e)}")
+                
+                # Fetch services
+                try:
+                    services.extend(self.client.list_services(ns))
+                except Exception as e:
+                    print(f"Error fetching services in namespace {ns}: {str(e)}")
+                
+                # Fetch PVCs
+                try:
+                    pvcs.extend(self.client.list_pvcs(ns))
+                except Exception as e:
+                    print(f"Error fetching PVCs in namespace {ns}: {str(e)}")
+                
+                # Fetch ingresses
+                try:
+                    ingresses.extend(self.client.list_ingresses(ns))
+                except Exception as e:
+                    print(f"Error fetching ingresses in namespace {ns}: {str(e)}")
+                
+                # Fetch pods with status
+                try:
+                    pods.extend(self.client.list_pods(ns))
+                except Exception as e:
+                    print(f"Error fetching pods in namespace {ns}: {str(e)}")
+                
+                # Fetch secrets
+                try:
+                    secrets.extend(self.client.list_secrets(ns))
+                except Exception as e:
+                    print(f"Error fetching secrets in namespace {ns}: {str(e)}")
+            except Exception as e:
+                print(f"Error processing namespace {ns}: {str(e)}")
+        return deployments, statefulsets, services, pvcs, ingresses, pods, secrets
     
     def collect_summary(self):
         """Collect summarized data for visualizations.
@@ -83,33 +108,56 @@ class ResourceCollector:
         """
         deployments, statefulsets, services, pvcs, ingresses, pods, secrets = [], [], [], [], [], [], []
         for ns in self.namespaces:
-            # Fetch deployments (skip for database namespaces)
-            if ns not in self.DATABASE_NAMESPACES:
-                for d in self.client.list_deployments(ns):
-                    deployments.append((d.metadata.name, d.status.replicas or 0, ns))
-            
-            # Fetch statefulsets (prioritize for database namespaces)
-            for s in self.client.list_statefulsets(ns):
-                statefulsets.append((s.metadata.name, s.status.replicas or 0, ns))
-            
-            # Fetch services
-            for s in self.client.list_services(ns):
-                services.append((s.metadata.name, ns))
-            
-            # Fetch PVCs
-            for p in self.client.list_pvcs(ns):
-                pvcs.append((p.metadata.name, ns))
-            
-            # Fetch ingresses
-            for i in self.client.list_ingresses(ns):
-                ingresses.append((i.metadata.name, ns))
-            
-            # Fetch pods with status
-            for p in self.client.list_pods(ns):
-                pods.append((p.metadata.name, p.metadata.owner_references, ns, p.status.phase))
-            # Fetch secret with status
-            for s in self.client.list_secrets(ns):
-                secrets.append((s.metadata.name, ns))
-
-        
-        return deployments, statefulsets, services, pvcs, ingresses, pods
+            try:
+                # Fetch deployments (skip for database namespaces)
+                if ns not in self.DATABASE_NAMESPACES:
+                    try:
+                        for d in self.client.list_deployments(ns):
+                            deployments.append((d.metadata.name, d.status.replicas or 0, ns))
+                    except Exception as e:
+                        print(f"Error fetching deployments in namespace {ns}: {str(e)}")
+                
+                # Fetch statefulsets (prioritize for database namespaces)
+                try:
+                    for s in self.client.list_statefulsets(ns):
+                        statefulsets.append((s.metadata.name, s.status.replicas or 0, ns))
+                except Exception as e:
+                        print(f"Error fetching statefulsets in namespace {ns}: {str(e)}")
+                
+                # Fetch services
+                try:
+                    for s in self.client.list_services(ns):
+                        services.append((s.metadata.name, ns))
+                except Exception as e:
+                    print(f"Error fetching services in namespace {ns}: {str(e)}")
+                
+                # Fetch PVCs
+                try:
+                    for p in self.client.list_pvcs(ns):
+                        pvcs.append((p.metadata.name, ns))
+                except Exception as e:
+                    print(f"Error fetching PVCs in namespace {ns}: {str(e)}")
+                
+                # Fetch ingresses
+                try:
+                    for i in self.client.list_ingresses(ns):
+                        ingresses.append((i.metadata.name, ns))
+                except Exception as e:
+                    print(f"Error fetching ingresses in namespace {ns}: {str(e)}")
+                
+                # Fetch pods with status
+                try:
+                    for p in self.client.list_pods(ns):
+                        pods.append((p.metadata.name, p.metadata.owner_references, ns, p.status.phase))
+                except Exception as e:
+                    print(f"Error fetching pods in namespace {ns}: {str(e)}")
+                
+                # Fetch secrets with status
+                try:
+                    for s in self.client.list_secrets(ns):
+                        secrets.append((s.metadata.name, ns))
+                except Exception as e:
+                    print(f"Error fetching secrets in namespace {ns}: {str(e)}")
+            except Exception as e:
+                print(f"Error processing namespace {ns}: {str(e)}")
+        return deployments, statefulsets, services, pvcs, ingresses, pods, secrets

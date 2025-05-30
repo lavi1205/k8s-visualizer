@@ -1,4 +1,4 @@
-# visualizer.py
+#visualizer.py
 from graphviz import Digraph
 
 class ResourceVisualizer:
@@ -31,7 +31,7 @@ class ResourceVisualizer:
             "Secret": "folder"
         }
         # self.namespace_colors = namespace_colors or self.DEFAULT_COLORS
-        self.namespace_colors = namespace_colors or self.DEFAULT_COLORS
+        self.namespace_colors = namespace_colors
         self.dot = Digraph("GKE_Architecture", format=output_format)
         self.dot.attr(
             rankdir="TB",
@@ -46,7 +46,7 @@ class ResourceVisualizer:
         # Add Cloud Load Balancer node
         self.dot.node("CloudLB", "Cloud Load Balancer", shape="box", style="filled", fillcolor="#FFCCCB")
     
-    def build_diagram(self, deployments, statefulsets, services, pvcs, ingresses, pods, namespaces):
+    def build_diagram(self, deployments, statefulsets, services, pvcs, ingresses, pods, secrets, namespaces):
         """Build the diagram from collected resources.
         
         Args:
@@ -56,11 +56,10 @@ class ResourceVisualizer:
             pvcs (list): List of (name, namespace) tuples.
             ingresses (list): List of (name, namespace) tuples.
             pods (list): List of (name, owner_references, namespace, status) tuples.
-            secrets (list): List of (name, namespace, status) tuples.
+            secrets (list): List of (name, namespace) tuples.
             namespaces (list): List of namespaces.
         """
-        ns_map = {ns: {"dep": [], "sts": [], "svc": [], "pvc": [], "ing": [], "pods": []} for ns in namespaces}
-        dep_replicas = {}
+        ns_map = {ns: {"dep": [], "sts": [], "svc": [], "pvc": [], "ing": [], "pods": [], "sec": []} for ns in namespaces}
         dep_replicas = {}
         sts_replicas = {}
         
@@ -106,9 +105,12 @@ class ResourceVisualizer:
                 display_pod, full_pod = self._shorten(pod_name)
                 display_owner, _ = self._shorten(owner_name)
                 ns_map[ns]["pods"].append((display_pod, display_owner, full_pod, status, owner_type))
-        # for secret_name, ns, _ in secrets:
-        #     display_name, full_name = self._shorten(secret_name)
-        #     ns_map[ns]["secrets"].append((display_name, full_name))   
+        
+        # Process secrets
+        for s, ns in secrets:
+            display_name, full_name = self._shorten(s)
+            ns_map[ns]["sec"].append((display_name, full_name))
+        
         # Build the diagram
         for ns, resources in ns_map.items():
             with self.dot.subgraph(name=f"cluster_{ns}") as cluster:
@@ -138,6 +140,10 @@ class ResourceVisualizer:
                 for pvc, full_pvc in resources["pvc"]:
                     cluster.node(f"{ns}_pvc_{pvc}", f"PVC: {pvc}", shape=self.node_shapes["PVC"], fillcolor="#FFECB3", style="filled", tooltip=full_pvc)
                 
+                # Add secret nodes
+                for sec, full_sec in resources["sec"]:
+                    cluster.node(f"{ns}_sec_{sec}", f"Secret: {sec}", shape=self.node_shapes["Secret"], fillcolor="#D3D3D3", style="filled", tooltip=full_sec)
+                
                 # Add pod nodes with status
                 for pod, parent, full_pod, status, owner_type in resources["pods"]:
                     cluster.node(f"{ns}_pod_{pod}", f"Pod: {pod}\\nStatus: {status}", shape=self.node_shapes["Pod"], fillcolor="#E1BEE7", style="filled", tooltip=full_pod)
@@ -145,9 +151,6 @@ class ResourceVisualizer:
                         cluster.edge(f"{ns}_dep_{parent}", f"{ns}_pod_{pod}")
                     elif owner_type == "StatefulSet":
                         cluster.edge(f"{ns}_sts_{parent}", f"{ns}_pod_{pod}")
-                
-                # for secret, full_secret in resources["secrets"]:
-                #     cluster.node(f"{ns}_secret_{secret}", f"Secret: {secret}", shape=self.node_shapes["Secret"], fillcolor="#F8BBD0", style="filled", tooltip=full_secret)
                 
                 # Add edges with labels
                 for ing, _ in resources["ing"]:
@@ -166,11 +169,17 @@ class ResourceVisualizer:
                     for pvc, _ in resources["pvc"]:
                         if pvc in dep:
                             cluster.edge(f"{ns}_dep_{dep}", f"{ns}_pvc_{pvc}", label="binds")
+                    for sec, _ in resources["sec"]:
+                        if sec in dep:
+                            cluster.edge(f"{ns}_dep_{dep}", f"{ns}_sec_{sec}", label="uses")
                 
                 for sts, _ in resources["sts"]:
                     for pvc, _ in resources["pvc"]:
                         if pvc in sts:
                             cluster.edge(f"{ns}_sts_{sts}", f"{ns}_pvc_{pvc}", label="binds")
+                    for sec, _ in resources["sec"]:
+                        if sec in sts:
+                            cluster.edge(f"{ns}_sts_{sts}", f"{ns}_sec_{sec}", label="uses")
                 
                 for ing, _ in resources["ing"]:
                     self.dot.edge("CloudLB", f"{ns}_ing_{ing}", label="routes to")

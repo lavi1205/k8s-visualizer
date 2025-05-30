@@ -29,7 +29,7 @@ class K8sVisualizerGUI:
         self.namespaces = []  # To store all namespaces
         
         # Available shapes and colors
-        self.node_shapes = ["box", "box3d", "ellipse", "circle", "tab", "component", "cylinder"]
+        self.node_shapes = ["box", "box3d", "ellipse", "circle", "tab", "component", "cylinder", "folder"]
         self.color_options = {
             "Light Blue": "#B3E5FC", "Light Green": "#C8E6C9", "Light Red": "#FFCDD2",
             "Light Yellow": "#FFECB3", "Light Purple": "#D1C4E9", "Light Cyan": "#B2DFDB",
@@ -112,7 +112,7 @@ class K8sVisualizerGUI:
         shape_frame = ttk.Frame(main_frame)
         shape_frame.grid(row=4, column=0, sticky="ew", pady=5)
         
-        for idx, resource in enumerate(["Deployment", "StatefulSet", "Service", "PVC", "Ingress", "Pod"]):
+        for idx, resource in enumerate(["Deployment", "StatefulSet", "Service", "PVC", "Ingress", "Pod", "Secret"]):
             ttk.Label(shape_frame, text=f"{resource}:").grid(row=idx, column=0, sticky="w")
             var = tk.StringVar(value=ResourceVisualizer().node_shapes[resource])
             self.shape_vars[resource] = var
@@ -262,7 +262,7 @@ class K8sVisualizerGUI:
             self.collector = ResourceCollector(selected_namespaces)
             
             # Fetch all resources
-            deployments, statefulsets, services, pvcs, ingresses, pods = self.collector.collect_resources()
+            deployments, statefulsets, services, pvcs, ingresses, pods, secrets = self.collector.collect_resources()
             
             # Export namespace manifests
             for ns in selected_namespaces:
@@ -277,7 +277,8 @@ class K8sVisualizerGUI:
                 "services": services,
                 "pvcs": pvcs,
                 "ingresses": ingresses,
-                "pods": pods
+                "pods": pods,
+                "secrets": secrets
             }
             
             for resource_type, resources in resource_types.items():
@@ -324,8 +325,8 @@ class K8sVisualizerGUI:
             )
             
             # Use collect_summary for visualization
-            deployments, statefulsets, services, pvcs, ingresses, pods = self.collector.collect_summary()
-            self.visualizer.build_diagram(deployments, statefulsets, services, pvcs, ingresses, pods, selected_namespaces)
+            deployments, statefulsets, services, pvcs, ingresses, pods, secrets = self.collector.collect_summary()
+            self.visualizer.build_diagram(deployments, statefulsets, services, pvcs, ingresses, pods, secrets, selected_namespaces)
             self.visualizer.render(view=False)
             
             self.status_label.config(text=f"Visualization generated: {svg_filename}.svg")
@@ -345,8 +346,8 @@ class K8sVisualizerGUI:
             self.reporter = ReportGenerator(output_file=self.csv_entry.get())
             
             # Use collect_summary for report generation
-            deployments, statefulsets, services, pvcs, ingresses, pods = self.collector.collect_summary()
-            self.reporter.generate_report(deployments, statefulsets, services, pvcs, ingresses, pods, selected_namespaces)
+            deployments, statefulsets, services, pvcs, ingresses, pods, secrets = self.collector.collect_summary()
+            self.reporter.generate_report(deployments, statefulsets, services, pvcs, ingresses, pods, secrets, selected_namespaces)
             
             self.status_label.config(text=f"CSV report generated: {self.csv_entry.get()}")
         except Exception as e:

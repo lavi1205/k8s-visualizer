@@ -12,7 +12,7 @@ class ReportGenerator:
         """
         self.output_file = output_file
     
-    def generate_report(self, deployments, statefulsets, services, pvcs, ingresses, pods, namespaces):
+    def generate_report(self, deployments, statefulsets, services, pvcs, ingresses, pods, secrets, namespaces):
         """Generate a CSV report from collected resources.
         
         Args:
@@ -23,6 +23,7 @@ class ReportGenerator:
             ingresses (list): List of (name, namespace) tuples.
             pods (list): List of (name, owner_references, namespace, status) tuples.
             namespaces (list): List of namespaces.
+            secrets (list): List of secrets tuples.
         """
         # Prepare report data
         report_data = []
