@@ -1,0 +1,8 @@
+/gke_architecture
+/gke_architecture.svg
+/gke_components_report.xlsx
+/k8s_architecture
+/k8s_architecture.svg
+/k8s_yaml_export
+/venv
+**__pycache__

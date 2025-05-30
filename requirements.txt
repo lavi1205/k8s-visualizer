@@ -1,0 +1,2 @@
+kubernetes>=28.1.0
+graphviz>=0.20.1
