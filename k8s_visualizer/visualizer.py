@@ -4,12 +4,6 @@ from graphviz import Digraph
 class ResourceVisualizer:
     """Visualizes Kubernetes resources as a Graphviz diagram."""
     
-    DEFAULT_COLORS = {
-        "lamprell": "#B3E5FC", "lamprell-dev": "#C8E6C9", "test-argocd": "#FFCDD2",
-        "redis-prod": "#FFECB3", "redis-nonprd": "#D1C4E9", "mongodb": "#B2DFDB",
-        "rabbitmq": "#F0F4C3", "monitor": "#FFCCBC"
-    }
-    
     def __init__(self, output_file="gke_architecture", output_format="svg", node_shapes=None, namespace_colors=None):
         """Initialize the visualizer.
         
@@ -30,7 +24,6 @@ class ResourceVisualizer:
             "Pod": "box",
             "Secret": "folder"
         }
-        # self.namespace_colors = namespace_colors or self.DEFAULT_COLORS
         self.namespace_colors = namespace_colors
         self.dot = Digraph("GKE_Architecture", format=output_format)
         self.dot.attr(
@@ -114,8 +107,9 @@ class ResourceVisualizer:
         # Build the diagram
         for ns, resources in ns_map.items():
             with self.dot.subgraph(name=f"cluster_{ns}") as cluster:
+                if self.namespace_colors is None:  
+                    self.namespace_colors = {}
                 cluster.attr(label=f"Namespace: {ns}", style="filled", fillcolor=self.namespace_colors.get(ns, "#E6F3FF"))
-                
                 # Add ingress nodes
                 for ing, full_ing in resources["ing"]:
                     cluster.node(f"{ns}_ing_{ing}", f"Ingress: {ing}", shape=self.node_shapes["Ingress"], fillcolor="#C8E6C9", style="filled", tooltip=full_ing)

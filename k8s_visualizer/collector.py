@@ -3,9 +3,9 @@ from .client import KubernetesClient
 class ResourceCollector:
     """Collects and processes Kubernetes resources from specified namespaces."""
     
-    DATABASE_NAMESPACES = {"redis-prod", "redis-nonprd", "mongodb", "rabbitmq"}
+    # DATABASE_NAMESPACES = {"redis-prod", "redis-nonprd", "mongodb", "rabbitmq"}
     
-    def __init__(self, namespaces, kubeconfig_path=None):
+    def __init__(self, namespaces, database_namespaces, kubeconfig_path=None):
         """Initialize the resource collector.
         
         Args:
@@ -13,6 +13,7 @@ class ResourceCollector:
             kubeconfig_path (str, optional): Path to kubeconfig file.
         """
         self.namespaces = namespaces
+        self.database_namespaces = database_namespaces
         self.client = KubernetesClient(kubeconfig_path)
     
     def shorten(self, name, max_len=30):
@@ -55,7 +56,7 @@ class ResourceCollector:
         for ns in self.namespaces:
             try:
                 # Fetch deployments (skip for database namespaces)
-                if ns not in self.DATABASE_NAMESPACES:
+                if ns not in self.database_namespaces:
                     try:
                         deployments.extend(self.client.list_deployments(ns))
                     except Exception as e:
@@ -110,7 +111,7 @@ class ResourceCollector:
         for ns in self.namespaces:
             try:
                 # Fetch deployments (skip for database namespaces)
-                if ns not in self.DATABASE_NAMESPACES:
+                if ns not in self.database_namespaces:
                     try:
                         for d in self.client.list_deployments(ns):
                             deployments.append((d.metadata.name, d.status.replicas or 0, ns))

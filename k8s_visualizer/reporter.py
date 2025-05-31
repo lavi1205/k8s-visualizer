@@ -1,6 +1,7 @@
 import csv
 import xlsxwriter
 from collections import Counter, defaultdict
+
 class ReportGenerator:
     """Generates a CSV report of Kubernetes resources."""
     
@@ -22,14 +23,14 @@ class ReportGenerator:
             pvcs (list): List of (name, namespace) tuples.
             ingresses (list): List of (name, namespace) tuples.
             pods (list): List of (name, owner_references, namespace, status) tuples.
+            secrets (list): List of (name, namespace) tuples.
             namespaces (list): List of namespaces.
-            secrets (list): List of secrets tuples.
         """
         # Prepare report data
         report_data = []
         
         # Process deployments
-        for name, replicas, ns in deployments:
+        for name, replicas, ns in deployments or []:
             report_data.append({
                 "ComponentType": "Deployment",
                 "Name": name,
@@ -41,7 +42,7 @@ class ReportGenerator:
             })
         
         # Process statefulsets
-        for name, replicas, ns in statefulsets:
+        for name, replicas, ns in statefulsets or []:
             report_data.append({
                 "ComponentType": "StatefulSet",
                 "Name": name,
@@ -53,12 +54,12 @@ class ReportGenerator:
             })
         
         # Process services
-        for name, ns in services:
+        for name, ns in services or []:
             related = []
-            for dep_name, _, dep_ns in deployments:
+            for dep_name, _, dep_ns in deployments or []:
                 if dep_ns == ns and name.replace("-service", "") in dep_name:
                     related.append(f"Deployment:{dep_name}")
-            for sts_name, _, sts_ns in statefulsets:
+            for sts_name, _, sts_ns in statefulsets or []:
                 if sts_ns == ns and name.replace("-service", "") in sts_name:
                     related.append(f"StatefulSet:{sts_name}")
             report_data.append({
@@ -72,12 +73,12 @@ class ReportGenerator:
             })
         
         # Process PVCs
-        for name, ns in pvcs:
+        for name, ns in pvcs or []:
             related = []
-            for dep_name, _, dep_ns in deployments:
+            for dep_name, _, dep_ns in deployments or []:
                 if dep_ns == ns and name in dep_name:
                     related.append(f"Deployment:{dep_name}")
-            for sts_name, _, sts_ns in statefulsets:
+            for sts_name, _, sts_ns in statefulsets or []:
                 if sts_ns == ns and name in sts_name:
                     related.append(f"StatefulSet:{sts_name}")
             report_data.append({
@@ -91,8 +92,8 @@ class ReportGenerator:
             })
         
         # Process ingresses
-        for name, ns in ingresses:
-            related = [f"Service:{svc_name}" for svc_name, svc_ns in services if svc_ns == ns]
+        for name, ns in ingresses or []:
+            related = [f"Service:{svc_name}" for svc_name, svc_ns in (services or []) if svc_ns == ns]
             report_data.append({
                 "ComponentType": "Ingress",
                 "Name": name,
@@ -104,12 +105,12 @@ class ReportGenerator:
             })
         
         # Process pods
-        for pod_name, owners, ns, status in pods:
+        for pod_name, owners, ns, status in pods or []:
             parent = ""
             for owner in owners or []:
-                if owner.kind == "ReplicaSet":
+                if owner and hasattr(owner, 'kind') and owner.kind == "ReplicaSet":
                     parent = f"Deployment:{owner.name.rsplit('-', 1)[0]}"
-                elif owner.kind == "StatefulSet":
+                elif owner and hasattr(owner, 'kind') and owner.kind == "StatefulSet":
                     parent = f"StatefulSet:{owner.name}"
             report_data.append({
                 "ComponentType": "Pod",
@@ -119,6 +120,25 @@ class ReportGenerator:
                 "Status": status,
                 "Parent": parent,
                 "RelatedComponents": ""
+            })
+        
+        # Process secrets
+        for name, ns in secrets or []:
+            related = []
+            for dep_name, _, dep_ns in deployments or []:
+                if dep_ns == ns and name in dep_name:
+                    related.append(f"Deployment:{dep_name}")
+            for sts_name, _, sts_ns in statefulsets or []:
+                if sts_ns == ns and name in sts_name:
+                    related.append(f"StatefulSet:{sts_name}")
+            report_data.append({
+                "ComponentType": "Secret",
+                "Name": name,
+                "Namespace": ns,
+                "Replicas": "",
+                "Status": "",
+                "Parent": "",
+                "RelatedComponents": ";".join(related)
             })
         
         # Write to CSV
@@ -131,15 +151,13 @@ class ReportGenerator:
         
         print(f"CSV report generated: {self.output_file}")
 
-
-
 class ExcelReportGenerator:
     """Generates an Excel report of Kubernetes resources with charts."""
     
     def __init__(self, output_file="gke_components_report.xlsx"):
         self.output_file = output_file
     
-    def generate_report(self, deployments, statefulsets, services, pvcs, ingresses, pods, namespaces):
+    def generate_report(self, deployments, statefulsets, services, pvcs, ingresses, pods, secrets, namespaces):
         workbook = xlsxwriter.Workbook(self.output_file)
         worksheet = workbook.add_worksheet("Resources")
         bold = workbook.add_format({'bold': True})
@@ -149,40 +167,44 @@ class ExcelReportGenerator:
         worksheet.write_row(0, 0, headers, bold)
         
         row = 1
-        for name, replicas, ns in deployments:
+        for name, replicas, ns in deployments or []:
             worksheet.write_row(row, 0, ["Deployment", name, ns, replicas, "", "", ""])
             row += 1
-        for name, replicas, ns in statefulsets:
+        for name, replicas, ns in statefulsets or []:
             worksheet.write_row(row, 0, ["StatefulSet", name, ns, replicas, "", "", ""])
             row += 1
-        for name, ns in services:
+        for name, ns in services or []:
             worksheet.write_row(row, 0, ["Service", name, ns, "", "", "", ""])
             row += 1
-        for name, ns in pvcs:
+        for name, ns in pvcs or []:
             worksheet.write_row(row, 0, ["PVC", name, ns, "", "", "", ""])
             row += 1
-        for name, ns in ingresses:
+        for name, ns in ingresses or []:
             worksheet.write_row(row, 0, ["Ingress", name, ns, "", "", "", ""])
             row += 1
-        for pod_name, owners, ns, status in pods:
+        for pod_name, owners, ns, status in pods or []:
             parent = ""
             for owner in owners or []:
-                if owner.kind == "ReplicaSet":
+                if owner and hasattr(owner, 'kind') and owner.kind == "ReplicaSet":
                     parent = f"Deployment:{owner.name.rsplit('-', 1)[0]}"
-                elif owner.kind == "StatefulSet":
+                elif owner and hasattr(owner, 'kind') and owner.kind == "StatefulSet":
                     parent = f"StatefulSet:{owner.name}"
             worksheet.write_row(row, 0, ["Pod", pod_name, ns, "", status, parent, ""])
+            row += 1
+        for name, ns in secrets or []:
+            worksheet.write_row(row, 0, ["Secret", name, ns, "", "", "", ""])
             row += 1
 
         # Component type counts (overall)
         component_counts = Counter({
-            "Deployment": len(deployments),
-            "StatefulSet": len(statefulsets),
-            "Service": len(services),
-            "PVC": len(pvcs),
-            "Ingress": len(ingresses),
-            "Pod": len(pods),
-            "Namespace": len(namespaces),
+            "Deployment": len(deployments or []),
+            "StatefulSet": len(statefulsets or []),
+            "Service": len(services or []),
+            "PVC": len(pvcs or []),
+            "Ingress": len(ingresses or []),
+            "Pod": len(pods or []),
+            "Secret": len(secrets or []),
+            "Namespace": len(namespaces or []),
         })
 
         chart_start_row = row + 2
@@ -193,7 +215,7 @@ class ExcelReportGenerator:
             worksheet.write(chart_start_row + 1 + idx, 1, v)
 
         # Colors
-        colors = ['#4F81BD', '#C0504D', '#9BBB59', '#8064A2', '#4BACC6', '#F79646', '#7F7F7F']
+        colors = ['#4F81BD', '#C0504D', '#9BBB59', '#8064A2', '#4BACC6', '#F79646', '#7F7F7F', '#A9A9A9']
 
         # Overall pie chart
         pie_chart = workbook.add_chart({'type': 'pie'})
@@ -214,18 +236,20 @@ class ExcelReportGenerator:
 
         # Namespace-wise counts
         ns_component_counts = defaultdict(lambda: Counter())
-        for name, _, ns in deployments:
+        for name, _, ns in deployments or []:
             ns_component_counts[ns]['Deployment'] += 1
-        for name, _, ns in statefulsets:
+        for name, _, ns in statefulsets or []:
             ns_component_counts[ns]['StatefulSet'] += 1
-        for name, ns in services:
+        for name, ns in services or []:
             ns_component_counts[ns]['Service'] += 1
-        for name, ns in pvcs:
+        for name, ns in pvcs or []:
             ns_component_counts[ns]['PVC'] += 1
-        for name, ns in ingresses:
+        for name, ns in ingresses or []:
             ns_component_counts[ns]['Ingress'] += 1
-        for name, _, ns, _ in pods:
+        for name, _, ns, _ in pods or []:
             ns_component_counts[ns]['Pod'] += 1
+        for name, ns in secrets or []:
+            ns_component_counts[ns]['Secret'] += 1
 
         # Add per-namespace summary and column charts
         ns_chart_start = chart_start_row + len(component_counts) + 5
