@@ -1,3 +1,4 @@
 kubernetes>=28.1.0
 graphviz>=0.20.1
 xlsxwriter==3.2.3
+ttkthemes==3.2.2

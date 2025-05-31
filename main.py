@@ -2,6 +2,7 @@ from k8s_visualizer.collector import ResourceCollector
 from k8s_visualizer.visualizer import ResourceVisualizer
 from k8s_visualizer.reporter import ReportGenerator, ExcelReportGenerator
 import tkinter as tk
+from ttkthemes import ThemedTk
 from k8s_visualizer.gui import K8sVisualizerGUI
 def main():
     # # Define namespaces to visualize
