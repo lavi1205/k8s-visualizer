@@ -25,7 +25,8 @@ class K8sVisualizerGUI:
         self.collector = None
         self.visualizer = None
         self.reporter = None
-        self.namespace_vars = {}  # For checkbox states
+        self.namespace_vars = {}  # For namespace selection checkbox states
+        self.database_namespace_vars = {}  # For database namespace checkbox states
         self.namespaces = []  # To store all namespaces
         
         # Available shapes and colors
@@ -95,14 +96,25 @@ class K8sVisualizerGUI:
         
         # Add Select All checkbox
         self.select_all_var = tk.IntVar()
-        ttk.Checkbutton(self.namespace_frame, text="Select All", variable=self.select_all_var, command=self.toggle_select_all).grid(row=0, column=0, sticky="w", pady=2)
+        ttk.Checkbutton(self.namespace_frame, text="Select All", variable=self.select_all_var, command=self.toggle_select_all).grid(row=0, column=0, columnspan=2, sticky="w", pady=2)
         
-        # Populate checkboxes for namespaces
+        # Add header for Database Namespace column
+        ttk.Label(self.namespace_frame, text="Namespace").grid(row=1, column=0, sticky="w", pady=2)
+        ttk.Label(self.namespace_frame, text="Database Namespace").grid(row=1, column=1, sticky="w", pady=2)
+        
+        # Populate checkboxes for namespaces and database namespaces
         for idx, ns in enumerate(sorted(self.namespaces)):
+            # Namespace selection checkbox
             var = tk.IntVar()
             self.namespace_vars[ns] = var
             chk = ttk.Checkbutton(self.namespace_frame, text=ns, variable=var, command=self.update_color_options)
-            chk.grid(row=idx + 1, column=0, sticky="w", pady=2)
+            chk.grid(row=idx + 2, column=0, sticky="w", pady=2)
+            
+            # Database namespace checkbox
+            db_var = tk.IntVar()
+            self.database_namespace_vars[ns] = db_var
+            db_chk = ttk.Checkbutton(self.namespace_frame, text="", variable=db_var, command=self.update_color_options)
+            db_chk.grid(row=idx + 2, column=1, sticky="w", pady=2)
         
         # Add separator to clearly distinguish sections
         ttk.Separator(main_frame, orient='horizontal').grid(row=2, column=0, sticky="ew", pady=10)
@@ -191,10 +203,12 @@ class K8sVisualizerGUI:
         main_frame.grid_columnconfigure(0, weight=1)
     
     def toggle_select_all(self):
-        """Toggle all namespace checkboxes based on Select All state."""
+        """Toggle all namespace and database namespace checkboxes based on Select All state."""
         select_all = self.select_all_var.get()
         for var in self.namespace_vars.values():
             var.set(select_all)
+        for db_var in self.database_namespace_vars.values():
+            db_var.set(0)  # Deselect database namespaces when Select All is toggled
         self.update_color_options()
     
     def update_color_options(self):
@@ -246,6 +260,7 @@ class K8sVisualizerGUI:
         """Export YAML files for all resources in selected namespaces."""
         try:
             selected_namespaces = [ns for ns, var in self.namespace_vars.items() if var.get()]
+            selected_database_namespaces = [ns for ns, var in self.database_namespace_vars.items() if var.get()]
             if not selected_namespaces:
                 messagebox.showwarning("Warning", "Please select at least one namespace.")
                 return
@@ -259,7 +274,7 @@ class K8sVisualizerGUI:
                 os.makedirs(export_dir)
             
             client = KubernetesClient()
-            self.collector = ResourceCollector(selected_namespaces)
+            self.collector = ResourceCollector(selected_namespaces, selected_database_namespaces)
             
             # Fetch all resources
             deployments, statefulsets, services, pvcs, ingresses, pods, secrets = self.collector.collect_resources()
@@ -303,9 +318,14 @@ class K8sVisualizerGUI:
         """Generate the SVG visualization."""
         try:
             selected_namespaces = [ns for ns, var in self.namespace_vars.items() if var.get()]
+            selected_database_namespaces = [ns for ns, var in self.database_namespace_vars.items() if var.get()]
             if not selected_namespaces:
                 messagebox.showwarning("Warning", "Please select at least one namespace.")
                 return
+            
+            # Warn if no database namespaces are selected
+            if not selected_database_namespaces:
+                messagebox.showwarning("Warning", "No database namespaces selected. Treating all selected namespaces as normal namespaces.")
             
             # Prepare custom shapes and colors based on selected namespaces
             node_shapes = {resource: var.get() for resource, var in self.shape_vars.items()}
@@ -316,7 +336,7 @@ class K8sVisualizerGUI:
             if svg_filename.lower().endswith(".svg"):
                 svg_filename = svg_filename[:-4]  # Remove the .svg extension
             
-            self.collector = ResourceCollector(selected_namespaces)
+            self.collector = ResourceCollector(selected_namespaces, selected_database_namespaces)
             self.visualizer = ResourceVisualizer(
                 output_file=svg_filename,
                 output_format="svg",
@@ -338,11 +358,16 @@ class K8sVisualizerGUI:
         """Generate the CSV report."""
         try:
             selected_namespaces = [ns for ns, var in self.namespace_vars.items() if var.get()]
+            selected_database_namespaces = [ns for ns, var in self.database_namespace_vars.items() if var.get()]
             if not selected_namespaces:
                 messagebox.showwarning("Warning", "Please select at least one namespace.")
                 return
             
-            self.collector = ResourceCollector(selected_namespaces)
+            # Optional: Warn if no database namespaces are selected
+            if not selected_database_namespaces:
+                messagebox.showwarning("Warning", "No database namespaces selected. Generating report for normal namespaces only.")
+            
+            self.collector = ResourceCollector(selected_namespaces, selected_database_namespaces)
             self.reporter = ReportGenerator(output_file=self.csv_entry.get())
             
             # Use collect_summary for report generation
