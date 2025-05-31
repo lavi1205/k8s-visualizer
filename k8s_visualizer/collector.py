@@ -3,8 +3,6 @@ from .client import KubernetesClient
 class ResourceCollector:
     """Collects and processes Kubernetes resources from specified namespaces."""
     
-    # DATABASE_NAMESPACES = {"redis-prod", "redis-nonprd", "mongodb", "rabbitmq"}
-    
     def __init__(self, namespaces, database_namespaces, kubeconfig_path=None):
         """Initialize the resource collector.
         
