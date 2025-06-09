@@ -41,7 +41,7 @@ To run the Kubernetes Architecture Visualizer, ensure the following:
 ## Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-repo/kubernetes-architecture-visualizer.git
+   git clone https://github.com/lavi1205/k8s-visualizer.git
    cd kubernetes-architecture-visualizer
    ```
 2. Install Python dependencies:
